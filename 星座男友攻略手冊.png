@@ -1,0 +1,77 @@
+let audioContext: AudioContext | null = null;
+let bgmTimer: number | null = null;
+let bgmGain: GainNode | null = null;
+let step = 0;
+
+const notes = [392, 493.88, 587.33, 659.25, 587.33, 493.88, 440, 392, 329.63, 392, 493.88, 523.25];
+const padNotes = [196, 246.94, 293.66, 329.63];
+
+const getContext = () => {
+  audioContext ??= new AudioContext();
+  return audioContext;
+};
+
+const playTone = (frequency: number, duration: number, gainValue: number, type: OscillatorType = "sine") => {
+  const context = getContext();
+  const oscillator = context.createOscillator();
+  const gain = context.createGain();
+  oscillator.frequency.value = frequency;
+  oscillator.type = type;
+  gain.gain.setValueAtTime(0.0001, context.currentTime);
+  gain.gain.exponentialRampToValueAtTime(gainValue, context.currentTime + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + duration);
+  oscillator.connect(gain);
+  gain.connect(context.destination);
+  oscillator.start();
+  oscillator.stop(context.currentTime + duration + 0.02);
+};
+
+export const playChoiceSound = () => {
+  playTone(783.99, 0.11, 0.055, "sine");
+  window.setTimeout(() => playTone(987.77, 0.16, 0.038, "triangle"), 70);
+};
+
+export const startBgm = async () => {
+  const context = getContext();
+  await context.resume();
+  if (bgmTimer) return;
+  const masterGain = context.createGain();
+  masterGain.gain.value = 0.026;
+  masterGain.connect(context.destination);
+  bgmGain = masterGain;
+
+  bgmTimer = window.setInterval(() => {
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    const pad = context.createOscillator();
+    const padGain = context.createGain();
+    oscillator.type = "sine";
+    pad.type = "triangle";
+    oscillator.frequency.value = notes[step % notes.length];
+    pad.frequency.value = padNotes[Math.floor(step / 3) % padNotes.length];
+    gain.gain.setValueAtTime(0.0001, context.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.12, context.currentTime + 0.08);
+    gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 1.15);
+    padGain.gain.setValueAtTime(0.0001, context.currentTime);
+    padGain.gain.exponentialRampToValueAtTime(0.035, context.currentTime + 0.25);
+    padGain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 1.8);
+    oscillator.connect(gain);
+    pad.connect(padGain);
+    gain.connect(masterGain);
+    padGain.connect(masterGain);
+    oscillator.start();
+    pad.start();
+    oscillator.stop(context.currentTime + 1.2);
+    pad.stop(context.currentTime + 1.9);
+    step += 1;
+  }, 760);
+};
+
+export const stopBgm = () => {
+  if (bgmTimer) {
+    window.clearInterval(bgmTimer);
+    bgmTimer = null;
+  }
+  bgmGain?.disconnect();
+  bgmGain = null;
+};

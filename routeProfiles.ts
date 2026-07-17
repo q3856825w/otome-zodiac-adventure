@@ -1,124 +1,153 @@
-import { ChevronRight, ClipboardList, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Music, Music2, Save, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { routeProfiles } from "../data/routeProfiles";
-import { getMissionForCharacter } from "../data/zodiac";
-import type { Character, GameState } from "../types";
+import type { Character, Choice, GameState, Scene } from "../types";
+import { getRelationshipLabel } from "../utils/gameLogic";
+import { playChoiceSound, startBgm, stopBgm } from "../utils/audio";
+import StatusPanel from "./StatusPanel";
 
-const meter = (label: string, value: number, danger = false) => (
-  <div className={`task-mini-meter ${danger ? "danger" : ""}`} key={label}>
-    <span>{label}</span>
-    <i><em style={{ width: `${value}%` }} /></i>
-    <b>{value}</b>
-  </div>
-);
+export default function StoryPage({
+  state,
+  scene,
+  character,
+  onChoice,
+  onSave,
+  onReset,
+}: {
+  state: GameState;
+  scene: Scene;
+  character?: Character;
+  onChoice: (choice: Choice) => void;
+  onSave: () => void;
+  onReset: () => void;
+}) {
+  const [musicOn, setMusicOn] = useState(false);
+  const [pressedChoice, setPressedChoice] = useState<string | null>(null);
+  const maxProgress = character?.id === "capricorn" ? 9 : 6;
+  const progress = state.completedScenes.filter((id) => id.startsWith(`${character?.id}-`)).length + 1;
+  const profile = character ? routeProfiles[character.id] : undefined;
+  const hiddenCount = profile
+    ? profile.hiddenEvents.filter((event) => state.unlockedHiddenEvents.includes(event.id)).length
+    : 0;
 
-const missionRow = (title: string, done: boolean, detail: string) => (
-  <li className={done ? "done" : ""} key={title}>
-    <span>{done ? "完成" : "進行中"}</span>
-    <div>
-      <b>{title}</b>
-      <small>{detail}</small>
+  const quickMetric = (label: string, value: number, className = "") => (
+    <div className={`quick-meter ${className}`} key={label}>
+      <div>
+        <span>{label}</span>
+        <b>{value}</b>
+      </div>
+      <i><em style={{ width: `${value}%` }} /></i>
     </div>
-  </li>
-);
+  );
 
-export default function TaskDrawer({ state, character }: { state: GameState; character?: Character }) {
-  const [open, setOpen] = useState(false);
-  const currentProfile = character ? routeProfiles[character.id] : undefined;
-  const allHiddenEvents = Object.values(routeProfiles).flatMap((profile) => profile.hiddenEvents);
-  const unlockedClues = allHiddenEvents.filter((event) => state.unlockedHiddenEvents.includes(event.id));
-  const currentRouteScenes = character ? state.completedScenes.filter((id) => id.startsWith(`${character.id}-`)).length : 0;
-  const totalEndings = state.characters.reduce((sum, item) => sum + item.endings.length, 0);
-  const playerProfile = state.playerProfile ?? {
-    heroineZodiac: state.player.zodiacSign,
-    heroineBloodType: state.player.bloodType,
+  useEffect(() => () => stopBgm(), []);
+
+  const toggleMusic = async () => {
+    if (musicOn) {
+      stopBgm();
+      setMusicOn(false);
+      return;
+    }
+    await startBgm();
+    setMusicOn(true);
   };
-  const zodiacMission = character ? getMissionForCharacter(playerProfile, character) : "選擇攻略角色後，星盤會依女主星座、血型與男主戀愛課題產生提示。";
 
-  const missions = useMemo(() => {
-    const cancerMeals = Math.min(3, state.completedScenes.filter((id) => id.startsWith("cancer-")).length);
-    const sagittariusPhotos = Math.min(7, state.completedScenes.filter((id) => id.startsWith("sagittarius-")).length);
-    const scorpioTruth = [
-      state.player.flags.scorpio_refused_test,
-      state.player.flags.scorpio_transfer_secret,
-      state.player.flags.scorpio_no_more_tests,
-    ].filter(Boolean).length;
-    return [
-      missionRow("和沈泊安一起吃過三次便當", cancerMeals >= 3, `${cancerMeals}/3 次日常陪伴`),
-      missionRow("讓白衡展出《偏心》", Boolean(state.player.flags.libra_work_bias || state.player.flags.libra_clear_choice), "需要白衡路線中承認偏心"),
-      missionRow("收到原野傳來的第七張照片", sagittariusPhotos >= 7, `${sagittariusPhotos}/7 張照片`),
-      missionRow("沒有對夜洵說謊超過三次", scorpioTruth >= 3, `${scorpioTruth}/3 次坦白與界線選擇`),
-      missionRow("解鎖任一角色 Normal Ending", state.unlockedEndings.some((id) => id.endsWith("-normal")), `${state.unlockedEndings.filter((id) => id.endsWith("-normal")).length} 個 Normal Ending`),
-      missionRow("解鎖任一角色 Hidden Ending", state.unlockedEndings.some((id) => id.endsWith("-hidden")), `${state.unlockedEndings.filter((id) => id.endsWith("-hidden")).length} 個 Hidden Ending`),
-    ];
-  }, [state.completedScenes, state.player.flags, state.unlockedEndings]);
+  const choose = (choice: Choice) => {
+    setPressedChoice(choice.text);
+    playChoiceSound();
+    window.setTimeout(() => {
+      onChoice(choice);
+      setPressedChoice(null);
+    }, 190);
+  };
 
   return (
-    <>
-      <button className="task-toggle" onClick={() => setOpen(true)}>
-        <ClipboardList size={16} />
-        星盤任務
-      </button>
-      <div className={`task-scrim ${open ? "open" : ""}`} onClick={() => setOpen(false)} />
-      <aside className={`task-drawer ${open ? "open" : ""}`} aria-hidden={!open}>
-        <header>
+    <section className="screen story-screen">
+      <header className="story-top">
+        <span>Day {state.player.day}</span>
+        <b>{scene.location}</b>
+        <button title={musicOn ? "關閉音樂" : "播放音樂"} onClick={toggleMusic}>
+          {musicOn ? <Music2 size={16} /> : <Music size={16} />}
+        </button>
+        <button title="存檔" onClick={onSave}><Save size={16} /></button>
+        <button title="重置" onClick={onReset}><Trash2 size={16} /></button>
+      </header>
+
+      <div
+        className={`portrait-zone ${character?.imageUrl ? "has-character-art" : ""}`}
+        style={character?.imageUrl ? { backgroundImage: `linear-gradient(180deg, rgba(25, 23, 38, 0.1), rgba(25, 23, 38, 0.82)), url(${character.imageUrl})` } : undefined}
+      >
+        <div className="portrait-orbit">{character?.zodiac ?? "星座"}</div>
+        <div>
+          <span className="tiny-label">{character?.ageGroup === "成年後" ? "成年後篇" : "主線"} {Math.min(progress, maxProgress)} / {maxProgress}</span>
+          <h2>{scene.title}</h2>
+          <p>{character?.name}｜{character?.schoolRole}</p>
+        </div>
+      </div>
+
+      <article className="dialogue-box">
+        {scene.text.split("\n").map((line) => <p key={line}>{line}</p>)}
+      </article>
+
+      {profile && (
+        <div className="route-arc-panel">
+          <b>路線成長弧</b>
+          <p>{profile.growthArc}</p>
+          <span>隱藏事件 {hiddenCount} / {profile.hiddenEvents.length}</span>
+        </div>
+      )}
+
+      {state.lastChanges.length > 0 && (
+        <div className="change-panel">
+          <b>剛剛的變化</b>
           <div>
-            <span>Side Quest</span>
-            <h3>星盤任務</h3>
+            {state.lastChanges.map((change) => <span key={change}>{change}</span>)}
           </div>
-          <button onClick={() => setOpen(false)} aria-label="關閉任務欄"><X size={18} /></button>
-        </header>
+          <p>{state.log[0]}</p>
+        </div>
+      )}
 
-        <section>
-          <h4>星盤任務</h4>
-          <div className="zodiac-mission-card">
-            <b>{character ? `${character.name}｜${character.zodiac}` : "尚未選擇路線"}</b>
-            <p>{zodiacMission}</p>
-            <small>{playerProfile.heroineZodiac} / {playerProfile.heroineBloodType} 的遊戲內相性提示</small>
-          </div>
-        </section>
-
-        <section>
-          <h4>隱藏任務</h4>
-          <ul className="mission-list">{missions}</ul>
-        </section>
+      <div className="choice-dock">
+        <div className="choices">
+          {scene.choices.map((choice) => (
+            <button
+              className={pressedChoice === choice.text ? "choice-pressed" : ""}
+              disabled={pressedChoice !== null}
+              key={choice.text}
+              onClick={() => choose(choice)}
+            >
+              {choice.text}
+            </button>
+          ))}
+        </div>
 
         {character && (
-          <section>
-            <h4>目前角色</h4>
-            <div className="task-character-card">
-              <div>
-                <b>{character.name}</b>
-                <small>{character.schoolRole}</small>
-              </div>
-              <span>{currentRouteScenes} 章</span>
+          <section className="story-metrics" aria-label="目前角色數值">
+            <div className="story-metrics-title">
+              <span>{character.name}</span>
+              <b>{getRelationshipLabel(character.relationshipState)}</b>
             </div>
-            {meter("好感", character.affection)}
-            {meter("信任", character.trust)}
-            {meter("嫉妒", character.jealousy, character.jealousy >= 60)}
+            <div className="quick-meter-grid">
+              {quickMetric("喜愛", character.affection)}
+              {quickMetric("信任", character.trust)}
+              {quickMetric("嫉妒", character.jealousy, character.jealousy >= 60 ? "danger" : "")}
+              {character.id === "capricorn" && quickMetric("冷靜", character.professorComposure, character.professorComposure < 30 ? "danger inverse" : "inverse")}
+            </div>
           </section>
         )}
+      </div>
 
-        <section>
-          <h4>已解鎖線索</h4>
-          <div className="clue-list">
-            {unlockedClues.length ? unlockedClues.map((event) => <span key={event.id}>{event.title}</span>) : <span>尚未解鎖線索</span>}
+      <aside className="story-side">
+        <StatusPanel state={state} character={character} />
+        {state.dialogueHistory.length > 0 && (
+          <div className="memory-panel side-memory-panel">
+            <b>最近對話</b>
+            {state.dialogueHistory.map((line) => (
+              <p key={line}>{line}</p>
+            ))}
           </div>
-          {currentProfile && <small>目前路線線索：{currentProfile.hiddenEvents.filter((event) => state.unlockedHiddenEvents.includes(event.id)).length}/{currentProfile.hiddenEvents.length}</small>}
-        </section>
-
-        <section>
-          <h4>結局進度</h4>
-          <div className="ending-progress">
-            <i><em style={{ width: `${totalEndings ? (state.unlockedEndings.length / totalEndings) * 100 : 0}%` }} /></i>
-            <span>{state.unlockedEndings.length}/{totalEndings}</span>
-          </div>
-        </section>
-
-        <button className="drawer-close" onClick={() => setOpen(false)}>
-          收合任務 <ChevronRight size={16} />
-        </button>
+        )}
       </aside>
-    </>
+    </section>
   );
 }

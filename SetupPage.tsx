@@ -1,72 +1,38 @@
-import { useEffect, useRef, useState } from "react";
-import { BookOpen, Heart, Music, Music2 } from "lucide-react";
-import { playChoiceSound, shouldAutoStartMusic, startBgm } from "../utils/audio";
+import { BookOpen, RotateCcw, Save } from "lucide-react";
+import type { Character, Ending } from "../types";
 
-interface Props {
-  onStart: () => void;
-  onCharacters: () => void;
-  onCollection: () => void;
-  musicOn: boolean;
-  onToggleMusic: () => void;
-}
-
-export default function HomePage({
-  onStart,
-  onCharacters,
+export default function EndingPage({
+  ending,
+  character,
+  unlocked,
+  onSave,
+  onRestart,
   onCollection,
-  musicOn,
-  onToggleMusic,
-}: Props) {
-  const [isStarting, setIsStarting] = useState(false);
-  const startTimer = useRef<number | null>(null);
-
-  useEffect(() => () => {
-    if (startTimer.current !== null) window.clearTimeout(startTimer.current);
-  }, []);
-
-  const handleStart = () => {
-    if (isStarting) return;
-
-    if (shouldAutoStartMusic()) void startBgm();
-    void playChoiceSound();
-    setIsStarting(true);
-    startTimer.current = window.setTimeout(onStart, 260);
-  };
-
+}: {
+  ending: Ending;
+  character?: Character;
+  unlocked: boolean;
+  onSave: () => void;
+  onRestart: () => void;
+  onCollection: () => void;
+}) {
   return (
-    <section className="screen home-screen poster-home" aria-label="星座男友攻略手冊首頁">
-      <div className="home-poster-frame">
-        <img
-          className="home-poster-image"
-          src="/assets/home-start-screen.png"
-          alt="星座男友攻略手冊主頁"
-        />
-        <button
-          type="button"
-          className="home-music-toggle"
-          onClick={onToggleMusic}
-          aria-label={musicOn ? "關閉背景音樂" : "開啟背景音樂"}
-          title={musicOn ? "背景音樂：播放中" : "背景音樂：已靜音"}
-        >
-          {musicOn ? <Music2 size={17} /> : <Music size={17} />}
-        </button>
-        <button
-          type="button"
-          className={`home-start-hotspot${isStarting ? " is-starting" : ""}`}
-          onClick={handleStart}
-          disabled={isStarting}
-          aria-label="Start new game"
-        />
-        <div className="home-quick-actions" aria-label="首頁選單">
-          <button type="button" onClick={onCharacters}>
-            <Heart size={16} />
-            角色圖鑑
-          </button>
-          <button type="button" onClick={onCollection}>
-            <BookOpen size={16} />
-            結局收集
-          </button>
-        </div>
+    <section className="screen ending-screen">
+      <div className={`ending-medal ${ending.type}`}>{ending.type.toUpperCase()}</div>
+      {ending.imageUrl && (
+        <img className="ending-illustration" src={ending.imageUrl} alt={ending.title} />
+      )}
+      <h2>{ending.title}</h2>
+      <p>{ending.description}</p>
+      <div className="info-panel">
+        <b>{character?.name}的隱藏性格</b>
+        <p>{character?.hiddenTrait}</p>
+        <small>{unlocked ? "已解鎖圖鑑" : "尚未收藏"}</small>
+      </div>
+      <div className="menu-grid">
+        <button onClick={onSave}><Save size={18} />存檔</button>
+        <button onClick={onRestart}><RotateCcw size={18} />回到角色選擇</button>
+        <button onClick={onCollection}><BookOpen size={18} />結局收集</button>
       </div>
     </section>
   );

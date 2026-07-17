@@ -1,19 +1,5 @@
-import { useState } from "react";
-import { ArrowLeft, BookOpen, LockKeyhole, Sparkles, X } from "lucide-react";
-import { getAllEndingReviewItems, type EndingReviewItem } from "../data/endings";
-import { playChoiceSound } from "../utils/audio";
-import type { Character, EndingType } from "../types";
-
-const endingTypeLabels: Record<EndingType, string> = {
-  bad: "Bad",
-  normal: "Normal",
-  good: "Good",
-  true: "True",
-  career: "Career",
-  hidden: "Hidden",
-  solo: "Solo",
-  dead: "Dead End",
-};
+import { ArrowLeft, LockKeyhole, Sparkles } from "lucide-react";
+import type { Character } from "../types";
 
 export default function CollectionPage({
   characters,
@@ -24,93 +10,58 @@ export default function CollectionPage({
   unlockedEndingIds: string[];
   onBack: () => void;
 }) {
-  const endings = getAllEndingReviewItems(characters);
+  const endings = characters.flatMap((character) =>
+    character.endings.map((ending) => ({
+      ...ending,
+      characterName: character.name,
+      zodiac: character.zodiac,
+      characterImageUrl: character.imageUrl,
+    }))
+  );
   const collectedCount = endings.filter((ending) => unlockedEndingIds.includes(ending.id)).length;
-  const [selectedEnding, setSelectedEnding] = useState<EndingReviewItem | null>(null);
-  const [notice, setNotice] = useState("");
-
-  const openEnding = (ending: EndingReviewItem, unlocked: boolean) => {
-    if (!unlocked) {
-      setNotice("這張回憶尚未解鎖");
-      window.setTimeout(() => setNotice(""), 1800);
-      return;
-    }
-
-    void playChoiceSound();
-    setNotice("");
-    setSelectedEnding(ending);
-  };
 
   return (
-    <section className="screen collection-screen memory-collection-screen">
-      <div className="collection-toolbar">
-        <button className="icon-link" onClick={onBack}>
-          <ArrowLeft size={18} />返回首頁
-        </button>
-      </div>
-
+    <section className="screen collection-screen">
+      <button className="icon-link" onClick={onBack}>
+        <ArrowLeft size={18} />返回
+      </button>
       <div className="collection-header">
-        <span className="tiny-label">Ending Memory Album</span>
-        <h2>結局典藏</h2>
-        <p>已收集 {collectedCount} / {endings.length}。每抵達一個結局，星盤就會點亮一張新的回憶卡。</p>
+        <span className="tiny-label">Ending Tarot Album</span>
+        <h2>結局卡牌圖鑑</h2>
+        <p>已收集 {collectedCount} / {endings.length}。每抵達一個結局，命運手冊就會翻開一張新的卡牌。</p>
       </div>
 
-      {notice && <div className="collection-notice" role="status">{notice}</div>}
-
-      <div className="ending-album memory-card-grid">
+      <div className="ending-album">
         {endings.map((ending) => {
           const unlocked = unlockedEndingIds.includes(ending.id);
+          const artUrl = ending.imageUrl ?? ending.characterImageUrl;
           return (
-            <button
-              type="button"
-              className={`memory-ending-card ${unlocked ? "unlocked" : "locked"} ${ending.type}`}
-              key={ending.id}
-              onClick={() => openEnding(ending, unlocked)}
-              aria-label={unlocked ? `查看結局：${ending.title}` : "未解鎖的結局"}
-            >
-              <div className="memory-card-art">
-                {unlocked && ending.imageUrl ? (
-                  <img src={ending.imageUrl} alt="" />
+            <article className={`ending-collection-card ${unlocked ? "unlocked" : "locked-card"} ${ending.type}`} key={ending.id}>
+              <div className="ending-card-art">
+                {unlocked && artUrl ? (
+                  <img src={artUrl} alt={ending.title} />
                 ) : (
-                  <div className="memory-card-back">
-                    <LockKeyhole size={28} />
-                    <span>未解鎖</span>
+                  <div className="card-back">
+                    <Sparkles size={24} />
+                    <span>{ending.zodiac}</span>
                   </div>
                 )}
-                <span className="ending-type-badge">{unlocked ? endingTypeLabels[ending.type] : "LOCKED"}</span>
+                <span className="ending-type-badge">{ending.type.toUpperCase()}</span>
               </div>
-              <div className="memory-card-copy">
-                <small>{unlocked ? ending.routeName : "命運尚未揭曉"}</small>
-                <b>{unlocked ? ending.title : "？？？"}</b>
-                <span>{unlocked ? "點擊查看回憶" : "尚未達成"}</span>
+              <div className="ending-card-copy">
+                <span>{ending.characterName}</span>
+                <b>{unlocked ? ending.title : "未解鎖結局"}</b>
+                <p>{unlocked ? ending.description : ending.requirements.join(" / ")}</p>
               </div>
-            </button>
+              {!unlocked && (
+                <div className="card-lock">
+                  <LockKeyhole size={15} />尚未收集
+                </div>
+              )}
+            </article>
           );
         })}
       </div>
-
-      {selectedEnding && (
-        <div className="ending-detail-backdrop" role="presentation" onClick={() => setSelectedEnding(null)}>
-          <article
-            className="ending-detail-dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="ending-detail-title"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <button className="ending-detail-close" onClick={() => setSelectedEnding(null)} aria-label="關閉">
-              <X size={20} />
-            </button>
-            {selectedEnding.imageUrl && <img src={selectedEnding.imageUrl} alt={selectedEnding.title} />}
-            <div className="ending-detail-copy">
-              <span><Sparkles size={15} />{selectedEnding.routeName} · {endingTypeLabels[selectedEnding.type]}</span>
-              <h3 id="ending-detail-title">{selectedEnding.title}</h3>
-              <p>{selectedEnding.description}</p>
-              <small><BookOpen size={14} />這段回憶已收入結局典藏</small>
-            </div>
-          </article>
-        </div>
-      )}
     </section>
   );
 }

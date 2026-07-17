@@ -12,52 +12,9 @@ export type ZodiacSign =
   | "摩羯座"
   | "水瓶座"
   | "雙魚座";
-export type BloodType = "A型" | "B型" | "O型" | "AB型";
 export type StatKey = "charm" | "intelligence" | "courage" | "kindness" | "social" | "mystery";
-export type CharacterMetric =
-  | "affection"
-  | "trust"
-  | "jealousy"
-  | "professorComposure"
-  | "boundary"
-  | "selfAwareness"
-  | "overwhelm"
-  | "pride"
-  | "impulse"
-  | "accountability"
-  | "honesty"
-  | "avoidance"
-  | "mask"
-  | "abandonmentFear"
-  | "connection"
-  | "logicArmor"
-  | "alienation"
-  | "emotionalAcceptance"
-  | "rulePressure"
-  | "careExpression"
-  | "selfCompassion"
-  | "control"
-  | "stabilityNeed"
-  | "possessiveness"
-  | "stubbornness"
-  | "expression"
-  | "overthinking"
-  | "spotlightNeed"
-  | "vulnerability"
-  | "authenticity"
-  | "balanceNeed"
-  | "decisiveness"
-  | "biasAcceptance"
-  | "socialMask"
-  | "freedomNeed"
-  | "commitmentFear"
-  | "returnDesire"
-  | "distanceRespect"
-  | "suspicion"
-  | "possessiveFear"
-  | "boundaryRespect"
-  | "vulnerableHonesty";
-export type EndingType = "bad" | "normal" | "good" | "true" | "career" | "hidden" | "solo" | "dead";
+export type CharacterMetric = "affection" | "trust" | "jealousy" | "professorComposure";
+export type EndingType = "bad" | "normal" | "good" | "true" | "career" | "hidden" | "solo";
 export type RelationshipState =
   | "stranger"
   | "curious"
@@ -102,44 +59,6 @@ export interface Character {
   trust: number;
   jealousy: number;
   professorComposure: number;
-  boundary: number;
-  selfAwareness: number;
-  overwhelm: number;
-  pride: number;
-  impulse: number;
-  accountability: number;
-  honesty: number;
-  avoidance: number;
-  mask: number;
-  abandonmentFear: number;
-  connection: number;
-  logicArmor: number;
-  alienation: number;
-  emotionalAcceptance: number;
-  rulePressure: number;
-  careExpression: number;
-  selfCompassion: number;
-  control: number;
-  stabilityNeed: number;
-  possessiveness: number;
-  stubbornness: number;
-  expression: number;
-  overthinking: number;
-  spotlightNeed: number;
-  vulnerability: number;
-  authenticity: number;
-  balanceNeed: number;
-  decisiveness: number;
-  biasAcceptance: number;
-  socialMask: number;
-  freedomNeed: number;
-  commitmentFear: number;
-  returnDesire: number;
-  distanceRespect: number;
-  suspicion: number;
-  possessiveFear: number;
-  boundaryRespect: number;
-  vulnerableHonesty: number;
   relationshipState: RelationshipState;
   routeUnlocked: boolean;
   endings: Ending[];
@@ -151,7 +70,6 @@ export interface Player {
   name: string;
   personalityType: PersonalityType;
   zodiacSign: ZodiacSign;
-  bloodType: BloodType;
   charm: number;
   intelligence: number;
   courage: number;
@@ -161,11 +79,6 @@ export interface Player {
   day: number;
   selectedRoute: string | null;
   flags: Record<string, boolean>;
-}
-
-export interface PlayerProfile {
-  heroineZodiac: ZodiacSign;
-  heroineBloodType: BloodType;
 }
 
 export interface ChoiceEffect {
@@ -197,7 +110,6 @@ export interface Scene {
 
 export interface GameState {
   player: Player;
-  playerProfile?: PlayerProfile;
   characters: Character[];
   currentSceneId: string | null;
   currentEndingId: string | null;

@@ -1,3 +1,21 @@
-$env:Path = "C:\Users\client\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin;" + $env:Path
-Set-Location "C:\Users\client\Documents\Codex\2026-06-25\new-chat"
-& "C:\Users\client\.cache\codex-runtimes\codex-primary-runtime\dependencies\bin\pnpm.cmd" dev -- --host 127.0.0.1 --port 5173
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "allowJs": false,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx"
+  },
+  "include": ["**/*.ts", "**/*.tsx"],
+  "exclude": ["node_modules", "dist"]
+}

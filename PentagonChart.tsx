@@ -1,55 +1,69 @@
-import { ArrowLeft, LockKeyhole, Sparkle } from "lucide-react";
-import { routeProfiles } from "../data/routeProfiles";
-import type { Character } from "../types";
+import { useEffect, useState } from "react";
+import { BookOpen, RotateCcw, Save, Sparkles } from "lucide-react";
+import type { Character, Ending } from "../types";
+import { playRevealSound } from "../utils/audio";
 
-export default function CharacterSelect({
-  characters,
-  onSelect,
-  onBack,
+export default function EndingPage({
+  ending,
+  character,
+  unlocked,
+  onSave,
+  onRestart,
+  onCollection,
 }: {
-  characters: Character[];
-  onSelect?: (id: string) => void;
-  onBack: () => void;
+  ending: Ending;
+  character?: Character;
+  unlocked: boolean;
+  onSave: () => void;
+  onRestart: () => void;
+  onCollection: () => void;
 }) {
+  const [revealed, setRevealed] = useState(false);
+
+  useEffect(() => {
+    setRevealed(false);
+  }, [ending.id]);
+
+  const handleReveal = () => {
+    void playRevealSound();
+    setRevealed(true);
+  };
+
   return (
-    <section className="screen">
-      <button className="icon-link" onClick={onBack}><ArrowLeft size={18} />返回</button>
-      <h2>選擇攻略路線</h2>
-      <div className="character-grid">
-        {characters.map((character) => (
-          <article className={`character-card ${character.ageGroup === "成年後" ? "adult-route" : ""}`} key={character.id}>
-            {character.imageUrl && (
-              <img className="character-thumb" src={character.imageUrl} alt={`${character.name}角色圖`} />
-            )}
-            <div className="zodiac-badge">{character.zodiac.slice(0, 2)}</div>
-            <h3>{character.name}</h3>
-            <p className="role">{character.schoolRole}</p>
-            {character.title && <p className="title-line">{character.title}｜{character.age}</p>}
-            <p>{character.personality}</p>
-            {routeProfiles[character.id] && (
-              <div className="route-depth">
-                <b>內在矛盾</b>
-                <p>{routeProfiles[character.id].innerConflict}</p>
-                <b>戀愛課題</b>
-                <p>{routeProfiles[character.id].loveLesson}</p>
-              </div>
-            )}
-            <div className="chips">
-              <span>{character.difficulty}</span>
-              <span>{character.ageGroup}</span>
-              {character.keywords.map((keyword) => <span key={keyword}>{keyword}</span>)}
-            </div>
-            <small>成年後可能職業：{character.adultRole}</small>
-            {onSelect ? (
-              <button className="card-action" onClick={() => onSelect(character.id)}>
-                <Sparkle size={16} />{character.ageGroup === "成年後" ? "進入成年篇" : "開始攻略"}
-              </button>
-            ) : (
-              <div className="locked"><LockKeyhole size={14} />建立女主角後可攻略</div>
-            )}
-          </article>
-        ))}
+    <section className={`screen ending-screen ${revealed ? "ending-revealed" : "ending-ritual-active"}`}>
+      {!revealed && (
+        <div className="ending-reveal-stage">
+          <button className="ending-reveal-card" onClick={handleReveal}>
+            <span className="card-shine" />
+            <span className="card-orbit one" />
+            <span className="card-orbit two" />
+            <Sparkles size={34} />
+            <b>命運結局卡</b>
+            <small>{character?.zodiac ?? "星盤"}正在發光</small>
+            <em>點擊翻開</em>
+          </button>
+        </div>
+      )}
+      {revealed && (
+        <>
+      <div className={`ending-medal ${ending.type}`}>{ending.type.toUpperCase()}</div>
+      {ending.imageUrl && (
+        <img className="ending-illustration" src={ending.imageUrl} alt={ending.title} />
+      )}
+      <h2>{ending.title}</h2>
+      <p>{ending.description}</p>
+      <div className="info-panel">
+        <b>{character?.name}的隱藏性格</b>
+        <p>{character?.hiddenTrait}</p>
+        <small>{unlocked ? "已解鎖圖鑑" : "尚未收藏"}</small>
       </div>
+      <div className="menu-grid">
+        <button onClick={onSave}><Save size={18} />存檔</button>
+        <button onClick={onRestart}><RotateCcw size={18} />回到角色選擇</button>
+        <button onClick={onCollection}><BookOpen size={18} />結局收集</button>
+      </div>
+        </>
+      )}
     </section>
   );
 }

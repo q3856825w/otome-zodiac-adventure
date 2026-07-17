@@ -1,211 +1,231 @@
-export type RouteProfile = {
-  characterId: string;
-  surfacePersona: string;
-  innerConflict: string;
-  growthArc: string;
-  coreWound: string;
-  loveLesson: string;
-  branchChoices: string[];
-  hiddenEvents: {
-    id: string;
-    title: string;
-    unlockHint: string;
-    text: string;
-  }[];
-  endingThemes: {
-    bad: string;
-    normal: string;
-    good: string;
-    true: string;
-    career: string;
-    hidden: string;
+import type { BloodType, Character, PlayerProfile, ZodiacSign } from "../types";
+import { routeProfiles } from "./routeProfiles";
+
+export type ZodiacElement = "fire" | "earth" | "air" | "water";
+export type ZodiacMode = "cardinal" | "fixed" | "mutable";
+export type RelationshipType = "same" | "trine" | "sextile" | "opposition" | "square" | "adjacent" | "neutral";
+
+export interface ZodiacInfo {
+  id: string;
+  name: ZodiacSign;
+  element: ZodiacElement;
+  mode: ZodiacMode;
+}
+
+export interface CompatibilityResult {
+  attraction: number;
+  trust: number;
+  communication: number;
+  tension: number;
+  hiddenPotential: number;
+  difficulty: 1 | 2 | 3 | 4 | 5;
+  keyword: string;
+  missionHint: string;
+  relationshipType: RelationshipType;
+  score: number;
+}
+
+export const zodiacSigns: ZodiacInfo[] = [
+  { id: "aries", name: "牡羊座", element: "fire", mode: "cardinal" },
+  { id: "taurus", name: "金牛座", element: "earth", mode: "fixed" },
+  { id: "gemini", name: "雙子座", element: "air", mode: "mutable" },
+  { id: "cancer", name: "巨蟹座", element: "water", mode: "cardinal" },
+  { id: "leo", name: "獅子座", element: "fire", mode: "fixed" },
+  { id: "virgo", name: "處女座", element: "earth", mode: "mutable" },
+  { id: "libra", name: "天秤座", element: "air", mode: "cardinal" },
+  { id: "scorpio", name: "天蠍座", element: "water", mode: "fixed" },
+  { id: "sagittarius", name: "射手座", element: "fire", mode: "mutable" },
+  { id: "capricorn", name: "摩羯座", element: "earth", mode: "cardinal" },
+  { id: "aquarius", name: "水瓶座", element: "air", mode: "fixed" },
+  { id: "pisces", name: "雙魚座", element: "water", mode: "mutable" },
+];
+
+export const zodiacByName = Object.fromEntries(zodiacSigns.map((sign) => [sign.name, sign])) as Record<ZodiacSign, ZodiacInfo>;
+
+export const zodiacByCharacterId = Object.fromEntries(zodiacSigns.map((sign) => [sign.id, sign])) as Record<string, ZodiacInfo>;
+
+const clamp = (value: number) => Math.max(0, Math.min(100, value));
+
+const positivePair = (a: ZodiacElement, b: ZodiacElement) =>
+  (a === "fire" && b === "air") ||
+  (a === "air" && b === "fire") ||
+  (a === "water" && b === "earth") ||
+  (a === "earth" && b === "water");
+
+export const getRelationshipType = (heroineZodiac: ZodiacSign, maleZodiac: ZodiacSign): RelationshipType => {
+  const heroineIndex = zodiacSigns.findIndex((sign) => sign.name === heroineZodiac);
+  const maleIndex = zodiacSigns.findIndex((sign) => sign.name === maleZodiac);
+  if (heroineIndex < 0 || maleIndex < 0) return "neutral";
+  const distance = Math.abs(heroineIndex - maleIndex);
+  const aspect = Math.min(distance, 12 - distance);
+  if (aspect === 0) return "same";
+  if (aspect === 4) return "trine";
+  if (aspect === 2) return "sextile";
+  if (aspect === 6) return "opposition";
+  if (aspect === 3) return "square";
+  if (aspect === 1) return "adjacent";
+  return "neutral";
+};
+
+const keywordFor = (relationshipType: RelationshipType, bloodType: BloodType) => {
+  if (bloodType === "AB型" && ["opposition", "square", "adjacent"].includes(relationshipType)) return "適合 Hidden Ending";
+  if (relationshipType === "same" || relationshipType === "trine") return "命定吸引";
+  if (relationshipType === "sextile") return "慢熱安全牌";
+  if (relationshipType === "opposition") return "高甜高爆雷";
+  if (relationshipType === "square") return "互相折磨但很有戲";
+  if (relationshipType === "adjacent") return "理解成本高但可推進";
+  return "普通但有變數";
+};
+
+const applyBloodType = (base: Omit<CompatibilityResult, "difficulty" | "keyword" | "missionHint" | "relationshipType" | "score">, bloodType: BloodType) => {
+  const next = { ...base };
+  if (bloodType === "A型") {
+    next.trust += 10;
+    next.tension -= 5;
+    next.attraction -= 2;
+  }
+  if (bloodType === "B型") {
+    next.attraction += 10;
+    next.communication += 4;
+    next.tension += 8;
+  }
+  if (bloodType === "O型") {
+    next.communication += 10;
+    next.trust += 4;
+    next.tension -= 2;
+  }
+  if (bloodType === "AB型") {
+    next.hiddenPotential += 14;
+    next.attraction += 4;
+    next.communication -= 4;
+    next.tension += 5;
+  }
+  return {
+    attraction: clamp(next.attraction),
+    trust: clamp(next.trust),
+    communication: clamp(next.communication),
+    tension: clamp(next.tension),
+    hiddenPotential: clamp(next.hiddenPotential),
   };
 };
 
-const endings = {
-  bad: "誤解沒有被說開，兩人錯過了最該坦白的時刻。",
-  normal: "保持朋友，心動被留在校園日常裡。",
-  good: "成功交往，學會用適合彼此的速度靠近。",
-  true: "理解核心傷口後，命運感不再只是星盤，而是選擇。",
-  career: "成年後重逢，感情成為可以並肩的力量。",
-  hidden: "收集到那些不會寫進公開劇情的小秘密。",
+const missionByCharacter = (character: Character, heroine: ZodiacInfo, male: ZodiacInfo, bloodType: BloodType, relation: RelationshipType) => {
+  const easyFireAir = positivePair(heroine.element, male.element) && ["fire", "air"].includes(male.element);
+  const steadyEarthWater = positivePair(heroine.element, male.element) && ["earth", "water"].includes(male.element);
+  const highConflict = relation === "opposition" || relation === "square";
+  const routeLesson = routeProfiles[character.id]?.loveLesson;
+
+  if (character.id === "sagittarius") {
+    if (easyFireAir) return "任務：用邀約和行動靠近原野，給他自由感，也清楚說出你想一起看遠方。";
+    return "任務：不要把等待變成壓力；問期限可以，但避免查勤式追問，讓他知道想回來不等於被綁住。";
+  }
+  if (character.id === "scorpio") {
+    if (highConflict) return "任務：對夜洵保持誠實與界線，不用試探回試探；被逼近時也要清楚說出不舒服。";
+    return "任務：慢慢累積信任、揭開秘密，同時降低佔有慾；坦白比猜測更能靠近他。";
+  }
+  if (character.id === "capricorn") {
+    return "任務：用穩定行動與守約累積沈知衡的信任；不要只靠撒嬌或情緒勒索攻略，讓他看見你也能並肩。";
+  }
+  if (character.id === "cancer" || steadyEarthWater) {
+    return `任務：把安全感說清楚，也別把他的照顧當成理所當然。${routeLesson ? `課題提示：${routeLesson}` : ""}`;
+  }
+  if (character.id === "libra") {
+    return "任務：不要追著曖昧跑；觀察他是否願意明確選擇，也讓自己站穩位置。";
+  }
+  if (character.id === "pisces") {
+    return "任務：溫柔陪伴但不過度承諾；界線感與自我覺察越高，越容易走向完整結局。";
+  }
+  if (character.id === "aries") {
+    return "任務：陪他面對問題，不只安慰；讓他知道承認痛不等於認輸。";
+  }
+  if (character.id === "leo") {
+    return "任務：欣賞他的光，也看見光環裂開後的人；不要只把他放在舞台上仰望。";
+  }
+  if (character.id === "virgo") {
+    return "任務：用行動證明可靠，也提醒他不是所有心動都能被公式訂正。";
+  }
+  if (character.id === "gemini") {
+    return "任務：跟上他的節奏，但在玩笑停下時，願意聽見沒有播出的真心。";
+  }
+  if (character.id === "aquarius") {
+    return "任務：接受他的奇怪，也讓他知道情緒不用全部解釋完才值得被接住。";
+  }
+  return routeLesson ? `任務：圍繞他的戀愛課題推進。${routeLesson}` : "任務：觀察他的核心課題，選擇能增加信任又保留界線的回答。";
 };
 
-export const routeProfiles: Record<string, RouteProfile> = {
-  aries: {
-    characterId: "aries",
-    surfacePersona: "永遠第一個衝出去的籃球隊學長。",
-    innerConflict: "他不能認輸、不能退，也拉不下臉道歉；越受傷越用嘴硬和生氣掩飾。",
-    growthArc: "從把道歉誤會成認輸，到學會把承擔放在勝負與面子前面。",
-    coreWound: "從小被要求要勇敢、保護別人、不能哭；曾替朋友出頭又被背叛，於是更不准自己示弱。",
-    loveLesson: "勇敢不是永遠衝第一，而是願意承認自己也會痛。",
-    branchChoices: ["並肩但不縱容逞強", "替他保全面子", "要求他承擔說錯的話", "陪他練習道歉"],
-    hiddenEvents: [
-      { id: "aries-taped-wrist", title: "白色護腕", unlockHint: "好感 45 或完成第二章", text: "你發現他把護腕纏得比平常緊。夏燃笑著說沒事，卻在你低頭替他重綁時安靜下來。" },
-      { id: "aries-empty-court", title: "空球場的低聲道歉", unlockHint: "信任 50 或完成第四章", text: "夜晚的球場只剩籃網晃動。他第一次承認，比起輸球，他更怕讓相信他的人失望。" },
-    ],
-    endingThemes: endings,
-  },
-  taurus: {
-    characterId: "taurus",
-    surfacePersona: "溫和慢熱的甜點社學長。",
-    innerConflict: "他習慣用照顧代替告白，怕太快說出口會嚇跑你。",
-    growthArc: "從默默準備，到學會把想要留下你的心情說清楚。",
-    coreWound: "家中咖啡廳曾因承諾失信而受傷，他不相信快速的熱情。",
-    loveLesson: "穩定不是沉默，陪伴也需要被說成心意。",
-    branchChoices: ["記住細節", "催他表態", "珍惜食物與時間", "成年後一起經營品牌"],
-    hiddenEvents: [
-      { id: "taurus-dessert-card", title: "沒送出的甜點卡", unlockHint: "好感 45 或完成第二章", text: "限定甜點旁夾著一張卡，上面寫著：如果妳今天也累了，這個甜度剛好。" },
-      { id: "taurus-closing-time", title: "打烊後的燈", unlockHint: "信任 50 或完成第四章", text: "咖啡廳打烊後，他留了一盞燈。那不是營業用，是等你回訊息用的。" },
-    ],
-    endingThemes: endings,
-  },
-  gemini: {
-    characterId: "gemini",
-    surfacePersona: "廣播社裡永遠有梗的人氣學弟。",
-    innerConflict: "他太會轉移話題，所以沒人知道他真正害怕被丟下。",
-    growthArc: "從把喜歡藏成玩笑，到敢在停播的空白裡說真話。",
-    coreWound: "曾被重要的人用玩笑帶過離別，於是他先一步變得不認真。",
-    loveLesson: "有趣不是逃跑的出口，認真也不等於失去自由。",
-    branchChoices: ["跟上節奏", "要求他立刻定義關係", "用吐槽接住真心", "成年後一起做節目"],
-    hiddenEvents: [
-      { id: "gemini-dead-air", title: "三秒空白", unlockHint: "好感 45 或完成第二章", text: "直播裡出現三秒空白。言澈看著你，第一次忘了接梗。" },
-      { id: "gemini-unused-script", title: "沒有播出的稿", unlockHint: "信任 50 或完成第四章", text: "你在稿紙背面看到一句：如果我認真，她會不會覺得無聊？" },
-    ],
-    endingThemes: endings,
-  },
-  cancer: {
-    characterId: "cancer",
-    surfacePersona: "像家一樣可靠的鄰家竹馬。",
-    innerConflict: "他越吃醋越照顧你，因為害怕一開口就變成束縛。",
-    growthArc: "從默默守在原地，到學會向你要求安全感。",
-    coreWound: "太早習慣照顧別人，忘了自己也可以脆弱。",
-    loveLesson: "安全感不是猜出來的，是彼此清楚給出的。",
-    branchChoices: ["清楚報備心意", "把他當理所當然", "溫柔但設界線", "成年後重新定義家"],
-    hiddenEvents: [
-      { id: "cancer-lunchbox", title: "便當盒裡的字條", unlockHint: "好感 45 或完成第二章", text: "便當盒底有一張字條：今天也要好好吃飯。字很小，像不敢被你發現的喜歡。" },
-      { id: "cancer-rain-call", title: "雨夜未接來電", unlockHint: "嫉妒 35 或完成第四章", text: "你看到三通未接來電。他只傳：雨很大，到家跟我說一聲。" },
-    ],
-    endingThemes: endings,
-  },
-  leo: {
-    characterId: "leo",
-    surfacePersona: "耀眼、驕傲、走到哪裡都像舞台中央。",
-    innerConflict: "他害怕被看見失敗，所以把脆弱藏進更華麗的笑容。",
-    growthArc: "從追求掌聲，到願意在你面前承認自己也會害怕。",
-    coreWound: "從小被期待成為完美的人，失誤對他來說像失去資格。",
-    loveLesson: "愛不是仰望光環，而是看見光環裂開後的人。",
-    branchChoices: ["欣賞但不盲從", "只崇拜他", "在失誤後留下", "成年後一起製作舞台"],
-    hiddenEvents: [
-      { id: "leo-broken-spotlight", title: "壞掉的聚光燈", unlockHint: "好感 45 或完成第二章", text: "彩排時燈忽然熄滅。盛陽站在黑暗裡，聲音很低：如果沒有人看我，我還剩什麼？" },
-      { id: "leo-practice-room", title: "練習室的第二遍", unlockHint: "信任 50 或完成第四章", text: "所有人離開後，他又把失誤的地方重來一遍。這次不是為掌聲，是為了不逃。" },
-    ],
-    endingThemes: endings,
-  },
-  virgo: {
-    characterId: "virgo",
-    surfacePersona: "理性、挑剔、嘴硬的年級第一。",
-    innerConflict: "他相信規則能避免失控，卻無法用公式處理心動。",
-    growthArc: "從用挑剔保持距離，到願意承認關心不是錯誤。",
-    coreWound: "曾因一次小疏忽造成嚴重後果，從此對自己過度苛刻。",
-    loveLesson: "努力不是為了完美，而是為了有餘裕靠近別人。",
-    branchChoices: ["用行動證明", "只靠撒嬌", "冷靜分析", "成年後一起研究"],
-    hiddenEvents: [
-      { id: "virgo-red-pen", title: "紅筆旁的糖", unlockHint: "好感 45 或完成第二章", text: "你的講義被改得滿江紅，旁邊卻放著一顆喉糖。顧硯說是多買的，耳尖很紅。" },
-      { id: "virgo-lost-answer", title: "找不到答案的題", unlockHint: "信任 50 或完成第四章", text: "他盯著白板很久，最後承認：不是所有事都有標準答案，尤其是妳。" },
-    ],
-    endingThemes: endings,
-  },
-  libra: {
-    characterId: "libra",
-    surfacePersona: "優雅、會社交、被很多人喜歡的美術社學長。",
-    innerConflict: "他太會平衡所有人，所以總把自己的心意排到最後。",
-    growthArc: "從照顧眾人的期待，到選擇自己的喜歡。",
-    coreWound: "害怕拒絕別人後被討厭，於是把曖昧維持成禮貌。",
-    loveLesson: "魅力不是追著誰跑，而是站穩自己的位置。",
-    branchChoices: ["建立自我魅力", "情緒勒索", "坦白不安", "成年後共同策展"],
-    hiddenEvents: [
-      { id: "libra-unfinished-portrait", title: "沒畫完的肖像", unlockHint: "好感 45 或完成第二章", text: "畫布上只有你的眼睛被完成。白衡說還沒想好背景，其實是不敢想你會站在哪裡。" },
-      { id: "libra-empty-gallery", title: "空展廳的選擇", unlockHint: "信任 50 或完成第四章", text: "他在空展廳裡問你：如果我不再討所有人喜歡，妳還會看我嗎？" },
-    ],
-    endingThemes: endings,
-  },
-  scorpio: {
-    characterId: "scorpio",
-    surfacePersona: "神秘、防備、像帶著秘密轉學而來。",
-    innerConflict: "他想相信你，卻會本能地把試探當成保護。",
-    growthArc: "從守著秘密觀察你，到願意把傷口交給你看。",
-    coreWound: "曾被信任的人背叛，於是把忠誠看得近乎絕對。",
-    loveLesson: "深情不是佔有，而是在界線裡仍選擇坦白。",
-    branchChoices: ["尊重界線", "故意試探", "交換秘密", "成年後並肩處理真相"],
-    hiddenEvents: [
-      { id: "scorpio-old-badge", title: "舊校徽", unlockHint: "好感 45 或完成第二章", text: "你看見他書包深處的舊校徽。夜洵沒有搶回去，只說：不是所有過去都適合被問。" },
-      { id: "scorpio-locked-roof", title: "鎖住的天台", unlockHint: "信任 50 或完成第四章", text: "天台門上有新的鎖。他把鑰匙放到你手裡，像把一部分過去也交給你。" },
-    ],
-    endingThemes: endings,
-  },
-  sagittarius: {
-    characterId: "sagittarius",
-    surfacePersona: "自由、開朗、像隨時會出發的旅行社團少年。",
-    innerConflict: "他不是不想留下，是害怕有人因為他而等待。",
-    growthArc: "從把離開當自由，到明白回來也是自己的選擇。",
-    coreWound: "搬家與告別太多次，讓他不敢相信長久。",
-    loveLesson: "不是抓住他，而是讓他想把遠方拍給你看。",
-    branchChoices: ["一起冒險", "查勤束縛", "保持獨立", "成年後在旅途中重逢"],
-    hiddenEvents: [
-      { id: "sagittarius-map-mark", title: "地圖上的星號", unlockHint: "好感 45 或完成第二章", text: "他的地圖上多了一顆星號，標在學校旁邊。他說只是路線標記，卻沒有擦掉。" },
-      { id: "sagittarius-airport-message", title: "尚未送出的訊息", unlockHint: "信任 50 或完成第四章", text: "訊息草稿停在：如果我走了，妳會不會希望我回來？" },
-    ],
-    endingThemes: endings,
-  },
-  capricorn: {
-    characterId: "capricorn",
-    surfacePersona: "冷漠、理性、距離感極強的物理教授。",
-    innerConflict: "他覺得自己除了物理一無是處，越喜歡越怕你離開。",
-    growthArc: "從只相信最佳解，到接受人生與感情都沒有標準答案。",
-    coreWound: "年輕時因研究失敗失去重要夥伴，從此把情緒視為風險。",
-    loveLesson: "依賴不是拖累，承認想念也不是失控。",
-    branchChoices: ["尊重界線", "看見他的不安", "故意逗他", "成年後共同面對研究壓力"],
-    hiddenEvents: [
-      { id: "capricorn-note-margin", title: "實驗筆記邊角", unlockHint: "冷靜值 <= 60 或完成第三章", text: "筆記邊角寫著你的咖啡喜好、常坐的位置、最近壓力大的日期。他記得比你自己還清楚。" },
-      { id: "capricorn-yesterday", title: "昨天", unlockHint: "好感 80 或完成第六章", text: "你收到一本想買很久的書，夾著便條：昨天。我不是故意不說話。" },
-      { id: "capricorn-miss-you", title: "我很想妳", unlockHint: "冷靜值 <= 10 或核心選項", text: "他的冷靜終於裂開，不是生氣，而是低聲說：我很想妳。" },
-    ],
-    endingThemes: endings,
-  },
-  aquarius: {
-    characterId: "aquarius",
-    surfacePersona: "科學社怪才，像活在自己寫的反套路宇宙。",
-    innerConflict: "他用怪保護孤獨，怕正常相處反而暴露自己很在意。",
-    growthArc: "從用演算法預測戀愛，到承認心動不能被完全建模。",
-    coreWound: "太常被說不合群，所以先把所有人歸類成無聊樣本。",
-    loveLesson: "接受他的奇怪，也讓他學會不是所有情緒都要被解釋。",
-    branchChoices: ["自由思考", "情緒勒索", "比他更會吐槽", "成年後共創 AI 專案"],
-    hiddenEvents: [
-      { id: "aquarius-debug-heart", title: "戀愛演算法 Debug Log", unlockHint: "好感 45 或完成第二章", text: "Log 裡寫著：她的變數太多，模型失準。結論：不是 bug，是我喜歡她。" },
-      { id: "aquarius-broken-robot", title: "壞掉的小機器人", unlockHint: "信任 50 或完成第四章", text: "機器人只會重複說歡迎回來。藍祈說程式壞了，卻沒有修掉。" },
-    ],
-    endingThemes: endings,
-  },
-  pisces: {
-    characterId: "pisces",
-    surfacePersona: "溫柔、敏感、藝術感強，像能把所有人的心情寫成旋律。",
-    innerConflict: "他從小習慣照顧家人的情緒，太早學會當別人的情緒容器，卻不懂得照顧自己。",
-    growthArc: "從把共情當成責任，到學會分辨陪伴、拯救與自我照顧的界線。",
-    coreWound: "家裡長期有人情緒不穩，他被迫太早懂事；只要別人難過，他就覺得是自己沒有做好。",
-    loveLesson: "愛不是把對方拉上岸，也不是陪他一起沉下去，而是一起找到能呼吸的地方。",
-    branchChoices: ["接受靠近但不接管情緒", "溫柔界線", "不拯救但陪伴", "練習拒絕不合理要求"],
-    hiddenEvents: [
-      { id: "pisces-unfinished-song", title: "未完成的旋律", unlockHint: "自我覺察 35 或完成第一個雙魚事件", text: "他把譜紙藏起來，卻在你離開後偷偷補上一句：我也想有人問我累不累。" },
-      { id: "pisces-family-voicemail", title: "沒接起的家人語音", unlockHint: "界線感 45 且情緒淹沒值低於 65", text: "手機亮了很久，他沒有立刻接。霧島凜小聲說：我知道我可以晚一點再回，不代表我不愛他們。" },
-      { id: "pisces-stage-light", title: "舞台邊緣的手", unlockHint: "自我覺察 60 且信任 55", text: "彩排前他緊張到發抖。你沒有替他回答所有問題，只陪他把第一小節重新彈完。" },
-    ],
-    endingThemes: {
-      ...endings,
-      bad: "溺水的月光：安慰變成互相淹沒，兩人都失去能呼吸的位置。",
-      normal: "夢醒以後：彼此喜歡，但他還沒準備好面對自己。",
-      good: "靠岸的人：學會表達需求，也學會拒絕過度情緒索取。",
-      hidden: "給自己的情書：他第一次真正面對家庭課題，並把自己也寫進愛裡。",
-    },
-  },
+export const calculateCompatibility = (heroineZodiac: ZodiacSign, bloodType: BloodType, character: Character): CompatibilityResult => {
+  const heroine = zodiacByName[heroineZodiac];
+  const male = zodiacByName[character.zodiac as ZodiacSign] ?? zodiacByCharacterId[character.id];
+  const relation = heroine && male ? getRelationshipType(heroine.name, male.name) : "neutral";
+  const base = {
+    attraction: 58,
+    trust: 54,
+    communication: 54,
+    tension: 42,
+    hiddenPotential: 48,
+  };
+
+  if (relation === "same") {
+    base.attraction += 12;
+    base.trust += 8;
+    base.tension += 4;
+  }
+  if (relation === "trine") {
+    base.attraction += 14;
+    base.trust += 12;
+    base.communication += 8;
+    base.tension -= 8;
+  }
+  if (relation === "sextile") {
+    base.attraction += 10;
+    base.communication += 12;
+    base.trust += 4;
+    base.tension -= 5;
+  }
+  if (relation === "opposition") {
+    base.attraction += 16;
+    base.tension += 18;
+    base.hiddenPotential += 7;
+    base.trust -= 4;
+  }
+  if (relation === "square") {
+    base.attraction += 7;
+    base.tension += 22;
+    base.communication -= 8;
+    base.hiddenPotential += 8;
+  }
+  if (relation === "adjacent") {
+    base.trust -= 4;
+    base.communication -= 8;
+    base.tension += 9;
+    base.hiddenPotential += 4;
+  }
+  if (heroine && male && positivePair(heroine.element, male.element)) {
+    base.attraction += 8;
+    base.trust += 5;
+    base.communication += 4;
+  }
+
+  const bloodAdjusted = applyBloodType(base, bloodType);
+  const score = Math.round(
+    bloodAdjusted.attraction * 0.25 +
+      bloodAdjusted.trust * 0.25 +
+      bloodAdjusted.communication * 0.2 +
+      bloodAdjusted.hiddenPotential * 0.15 +
+      (100 - bloodAdjusted.tension) * 0.15
+  );
+  const pressure = bloodAdjusted.tension - bloodAdjusted.trust * 0.18 - bloodAdjusted.communication * 0.12;
+  const difficulty = Math.max(1, Math.min(5, Math.round(pressure / 18) + 2)) as 1 | 2 | 3 | 4 | 5;
+
+  return {
+    ...bloodAdjusted,
+    difficulty,
+    keyword: keywordFor(relation, bloodType),
+    missionHint: missionByCharacter(character, heroine, male, bloodType, relation),
+    relationshipType: relation,
+    score,
+  };
 };
+
+export const getMissionForCharacter = (profile: PlayerProfile, character: Character) =>
+  calculateCompatibility(profile.heroineZodiac, profile.heroineBloodType, character).missionHint;

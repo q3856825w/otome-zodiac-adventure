@@ -1,96 +1,164 @@
-import { ArrowLeft, Sparkles } from "lucide-react";
-import { useMemo, useState } from "react";
-import { zodiacSigns } from "../data/zodiac";
-import type { BloodType, PersonalityType, PlayerProfile, ZodiacSign } from "../types";
+import { Music, Music2, Save, Trash2 } from "lucide-react";
+import { useState } from "react";
+import type { Character, Choice, GameState, Scene } from "../types";
+import { getRelationshipLabel } from "../utils/gameLogic";
+import { playChoiceSound } from "../utils/audio";
+import TaskDrawer from "./TaskDrawer";
 
-const personalities: PersonalityType[] = ["溫柔型", "毒舌型", "直球型", "冷靜型", "社交型"];
-const bloodTypes: BloodType[] = ["A型", "B型", "O型", "AB型"];
-
-const bloodDescriptions: Record<BloodType, string> = {
-  A型: "細膩、謹慎，安全感需求比較高，擅長記住小細節。",
-  B型: "自由、直覺，行動力強，心動時很容易先出發再補劇本。",
-  O型: "外向、直接，包容度高，攻略節奏通常推得比較順。",
-  AB型: "神秘、理性，情緒反差大，看似冷靜，其實內心戲很會自己加配樂。",
-};
-
-const signDescriptions: Record<ZodiacSign, string> = {
-  牡羊座: "你習慣直球破局，喜歡把心意說得明亮，但也容易太快衝進劇情核心。",
-  金牛座: "你重視穩定與生活感，對日常陪伴很敏銳，也需要時間確認安全。",
-  雙子座: "你反應快、會接梗，適合高節奏互動，但要小心用玩笑躲過真心。",
-  巨蟹座: "你重視情緒安全，也容易把日常照顧看得比告白更重要。",
-  獅子座: "你會被光芒吸引，也希望自己的存在被看見，適合明亮又真誠的路線。",
-  處女座: "你擅長觀察細節，喜歡有秩序的靠近，但心動有時不照時間表走。",
-  天秤座: "你重視氛圍、審美與互動平衡，容易被若即若離的曖昧牽動。",
-  天蠍座: "你對深層情緒很敏銳，能讀懂防備，但也需要守住自己的界線。",
-  射手座: "你喜歡遠方與可能性，適合自由感強的戀愛，但安全感要靠清楚溝通。",
-  摩羯座: "你重視行動與承諾，慢熱但可靠，適合用時間證明的路線。",
-  水瓶座: "你有獨特視角，不怕怪，也適合用吐槽拆掉那些太正經的防禦。",
-  雙魚座: "你共感力強，容易聽見沒說出口的情緒，但也要記得先讓自己能呼吸。",
-};
-
-export default function SetupPage({
-  onStart,
-  onBack,
-  initialProfile,
+export default function StoryPage({
+  state,
+  scene,
+  character,
+  onChoice,
+  onSave,
+  onReset,
+  musicOn,
+  onToggleMusic,
 }: {
-  onStart: (name: string, type: PersonalityType, zodiacSign: ZodiacSign, bloodType: BloodType) => void;
-  onBack: () => void;
-  initialProfile?: PlayerProfile | null;
+  state: GameState;
+  scene: Scene;
+  character?: Character;
+  onChoice: (choice: Choice) => void;
+  onSave: () => void;
+  onReset: () => void;
+  musicOn: boolean;
+  onToggleMusic: () => void;
 }) {
-  const [name, setName] = useState("林星澄");
-  const [type, setType] = useState<PersonalityType>("溫柔型");
-  const [zodiacSign, setZodiacSign] = useState<ZodiacSign>(initialProfile?.heroineZodiac ?? "雙魚座");
-  const [bloodType, setBloodType] = useState<BloodType>(initialProfile?.heroineBloodType ?? "O型");
-  const nickname = name.trim() || "林星澄";
+  const [pressedChoice, setPressedChoice] = useState<string | null>(null);
+  const maxProgress =
+    character?.id === "aries" ||
+    character?.id === "aquarius" ||
+    character?.id === "gemini" ||
+    character?.id === "pisces" ||
+    character?.id === "scorpio" ||
+    character?.id === "sagittarius" ||
+    character?.id === "taurus" ||
+    character?.id === "virgo"
+      ? 10
+      : character?.id === "capricorn"
+        ? 9
+        : 6;
+  const progress = state.completedScenes.filter((id) => id.startsWith(`${character?.id}-`)).length + 1;
 
-  const heroineDescription = useMemo(
-    () => `${nickname}是${zodiacSign}${bloodType}女主。${signDescriptions[zodiacSign]}${bloodDescriptions[bloodType]}目前人格傾向偏${type}，戀愛雷達已啟動。`,
-    [bloodType, nickname, type, zodiacSign]
+  const quickMetric = (label: string, value: number, className = "") => (
+    <div className={`quick-meter ${className}`} key={label}>
+      <div>
+        <span>{label}</span>
+        <b>{value}</b>
+      </div>
+      <i><em style={{ width: `${value}%` }} /></i>
+    </div>
   );
 
+  const choose = (choice: Choice) => {
+    setPressedChoice(choice.text);
+    playChoiceSound();
+    window.setTimeout(() => {
+      onChoice(choice);
+      setPressedChoice(null);
+    }, 190);
+  };
+
   return (
-    <section className="screen setup-screen">
-      <button className="icon-link" onClick={onBack}><ArrowLeft size={18} />返回</button>
-      <div className="setup-title">
-        <Sparkles size={22} />
+    <section className="screen story-screen">
+      <header className="story-top">
+        <span>Day {state.player.day}</span>
+        <b>{scene.location}</b>
+        <button title={musicOn ? "關閉音樂" : "播放音樂"} onClick={onToggleMusic}>
+          {musicOn ? <Music2 size={16} /> : <Music size={16} />}
+        </button>
+        <button title="存檔" onClick={onSave}><Save size={16} /></button>
+        <button title="重置" onClick={onReset}><Trash2 size={16} /></button>
+      </header>
+
+      <div
+        className={`portrait-zone ${character?.imageUrl ? "has-character-art" : ""}`}
+        style={character?.imageUrl ? { backgroundImage: `linear-gradient(180deg, rgba(25, 23, 38, 0.1), rgba(25, 23, 38, 0.82)), url(${character.imageUrl})` } : undefined}
+      >
+        <div className="portrait-orbit">{character?.zodiac ?? "星座"}</div>
         <div>
-          <span className="tiny-label">Heroine Profile</span>
-          <h2>建立女主角</h2>
+          <span className="tiny-label">{character?.ageGroup === "成年後" ? "成年後篇" : "主線"} {Math.min(progress, maxProgress)} / {maxProgress}</span>
+          <h2>{scene.title}</h2>
+          <p>{character?.name}｜{character?.schoolRole}</p>
         </div>
       </div>
 
-      <label className="field-label">女主暱稱</label>
-      <input value={name} onChange={(event) => setName(event.target.value)} maxLength={10} />
+      <article className="dialogue-box">
+        {scene.text.split("\n").map((line) => <p key={line}>{line}</p>)}
+      </article>
 
-      <label className="field-label">性格傾向</label>
-      <div className="segmented">
-        {personalities.map((item) => (
-          <button key={item} className={item === type ? "active" : ""} onClick={() => setType(item)}>{item}</button>
-        ))}
+      {state.lastChanges.length > 0 && (
+        <div className="change-panel">
+          <b>剛剛的變化</b>
+          <div>
+            {state.lastChanges.map((change) => <span key={change}>{change}</span>)}
+          </div>
+          <p>{state.log[0]}</p>
+        </div>
+      )}
+
+      <div className="choice-dock">
+        <div className="choices">
+          {scene.choices.map((choice) => (
+            <button
+              className={pressedChoice === choice.text ? "choice-pressed" : ""}
+              disabled={pressedChoice !== null}
+              key={choice.text}
+              onClick={() => choose(choice)}
+            >
+              {choice.text}
+            </button>
+          ))}
+        </div>
+
+        {character && (
+          <section className="story-metrics" aria-label="目前角色數值">
+            <div className="story-metrics-title">
+              <span>{character.name}</span>
+              <b>{getRelationshipLabel(character.relationshipState)}</b>
+            </div>
+            <div className="quick-meter-grid">
+              {quickMetric("喜愛", character.affection)}
+              {quickMetric("信任", character.trust)}
+              {quickMetric("嫉妒", character.jealousy, character.jealousy >= 60 ? "danger" : "")}
+              {character.id === "aries" && quickMetric("面子", character.pride, character.pride >= 75 ? "danger" : "")}
+              {character.id === "aries" && quickMetric("衝動", character.impulse, character.impulse >= 75 ? "danger" : "")}
+              {character.id === "aries" && quickMetric("承擔", character.accountability)}
+              {character.id === "leo" && quickMetric("光環", character.spotlightNeed, character.spotlightNeed >= 75 ? "danger" : "")}
+              {character.id === "leo" && quickMetric("脆弱", character.vulnerability)}
+              {character.id === "leo" && quickMetric("驕傲", character.pride, character.pride >= 75 ? "danger" : "")}
+              {character.id === "leo" && quickMetric("真實", character.authenticity)}
+              {character.id === "libra" && quickMetric("平衡", character.balanceNeed, character.balanceNeed >= 75 ? "danger" : "")}
+              {character.id === "libra" && quickMetric("明確", character.decisiveness)}
+              {character.id === "libra" && quickMetric("偏心", character.biasAcceptance)}
+              {character.id === "libra" && quickMetric("面具", character.socialMask, character.socialMask >= 70 ? "danger" : "")}
+              {character.id === "taurus" && quickMetric("穩定", character.stabilityNeed, character.stabilityNeed >= 75 ? "danger" : "")}
+              {character.id === "taurus" && quickMetric("佔有", character.possessiveness, character.possessiveness >= 70 ? "danger" : "")}
+              {character.id === "taurus" && quickMetric("固執", character.stubbornness, character.stubbornness >= 75 ? "danger" : "")}
+              {character.id === "taurus" && quickMetric("表達", character.expression)}
+              {character.id === "taurus" && quickMetric("鑽牛角尖", character.overthinking, character.overthinking >= 70 ? "danger" : "")}
+              {character.id === "gemini" && quickMetric("真誠", character.honesty)}
+              {character.id === "gemini" && quickMetric("逃避", character.avoidance, character.avoidance >= 70 ? "danger" : "")}
+              {character.id === "gemini" && quickMetric("面具", character.mask, character.mask >= 70 ? "danger" : "")}
+              {character.id === "gemini" && quickMetric("丟下恐懼", character.abandonmentFear, character.abandonmentFear >= 75 ? "danger" : "")}
+              {character.id === "aquarius" && quickMetric("連結", character.connection)}
+              {character.id === "aquarius" && quickMetric("邏輯防禦", character.logicArmor, character.logicArmor >= 70 ? "danger" : "")}
+              {character.id === "aquarius" && quickMetric("疏離", character.alienation, character.alienation >= 70 ? "danger" : "")}
+              {character.id === "aquarius" && quickMetric("情緒接納", character.emotionalAcceptance)}
+              {character.id === "virgo" && quickMetric("規則壓力", character.rulePressure, character.rulePressure >= 70 ? "danger" : "")}
+              {character.id === "virgo" && quickMetric("關心表達", character.careExpression)}
+              {character.id === "virgo" && quickMetric("自我接納", character.selfCompassion)}
+              {character.id === "virgo" && quickMetric("控制感", character.control, character.control >= 70 ? "danger" : "")}
+              {character.id === "capricorn" && quickMetric("冷靜", character.professorComposure, character.professorComposure < 30 ? "danger inverse" : "inverse")}
+              {character.id === "pisces" && quickMetric("界線", character.boundary)}
+              {character.id === "pisces" && quickMetric("覺察", character.selfAwareness)}
+              {character.id === "pisces" && quickMetric("淹沒", character.overwhelm, character.overwhelm >= 65 ? "danger" : "")}
+            </div>
+          </section>
+        )}
       </div>
 
-      <label className="field-label">女主星座</label>
-      <select className="select-field" value={zodiacSign} onChange={(event) => setZodiacSign(event.target.value as ZodiacSign)}>
-        {zodiacSigns.map((item) => (
-          <option key={item.id} value={item.name}>{item.name}</option>
-        ))}
-      </select>
-
-      <label className="field-label">女主血型</label>
-      <div className="blood-picker">
-        {bloodTypes.map((item) => (
-          <button key={item} className={item === bloodType ? "active" : ""} onClick={() => setBloodType(item)}>{item}</button>
-        ))}
-      </div>
-
-      <div className="info-panel heroine-profile">
-        <b>女主角性格描述</b>
-        <p>{heroineDescription}</p>
-      </div>
-
-      <button className="primary-button wide" onClick={() => onStart(nickname, type, zodiacSign, bloodType)}>
-        儲存並查看星盤攻略表
-      </button>
+      <TaskDrawer state={state} character={character} />
     </section>
   );
 }
